@@ -4,7 +4,7 @@ An API that allows sending a zip or tar.gz to an HTTP endpoint and get back a De
 
 The zip or tar.gz should contain the contents of a folder that is buildable by [go-ian](https://github.com/penguinpowernz/go-ian)
 
-Made as part of the Level1Techs Devember https://www.youtube.com/watch?v=Daf5C52s124
+Made as part of the Level1Techs Devember https://forum.level1techs.com/t/welcome-to-level1-devember/162269
 
 ## Building
 
