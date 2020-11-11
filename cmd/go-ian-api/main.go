@@ -1,75 +1,70 @@
 package main
 
 import (
-	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"os"
+	"path"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+)
+
+var (
+	MaxFileSize = 50 * 1024 * 1024
+	UploadPath  = "uploads"
+	ExtractPath = "extracts"
 )
 
 func main() {
-	http.HandleFunc("/upload", uploadFileHandler())
+	api := gin.Default()
 
-	fs := http.FileServer(http.Dir(""))
-	http.Handle("/files/", http.StripPrefix("/files", fs))
+	api.StaticFS("/download", http.Dir("downloads"))
+	api.MaxMultipartMemory = 8 << 20
+
+	svr := &server{}
+	svr.AttachRoutes(api)
+	// TODO: rate limit
 
 	log.Print("Server started on localhost:8080, use /upload for uploading files and /files/{fileName} for downloading files.")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(api.Run(":8080"))
 }
 
-// TODO: rate limit
+type server struct {
+	UploadPath  string
+	ExtractPath string
+}
 
-func uploadFileHandler() http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.ParseMultipartForm(32 << 20) // limit your max input length!
-		// in your case file would be fileupload
-		file, header, err := r.FormFile("file")
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		defer file.Close()
+func (svr *server) AttachRoutes(r gin.IRouter) {
+	r.POST("/upload", svr.UploadFile)
+}
 
-		if header.Size > 50*1024*1024 {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		name := strings.Split(header.Filename, ".")
-		fmt.Printf("File name %s\n", name[0])
-		ext := strings.Join(name[1:], ".")
-
-		switch ext {
-		case "tar.gz", "zip":
-			break
-		default:
-			// TODO: error out
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		// TODO: ESCAPE filename
-		savedFilePath := "/pathToStoreFile/" + header.Filename
-		f, err := os.OpenFile(savedFilePath, os.O_WRONLY|os.O_CREATE, 0666)
-		defer f.Close()
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		// Copy the file to the destination path
-		io.Copy(f, file)
-
-		// TODO: extract file contents
-
-		// TODO: run ian on the file contents
-
-		// TODO: move debian package to unique location
-
-		// TODO: redirect to debian package location
-
+func (svr *server) UploadFile(c *gin.Context) {
+	file, header := c.FormFile("file")
+	if header.Size > MaxFileSize {
+		c.AbortWithStatus(400)
 		return
-	})
+	}
+
+	name := strings.Split(header.Filename, ".")
+	ext := strings.Join(name[1:], ".")
+
+	switch ext {
+	case "tar.gz", "zip":
+		break
+	default:
+		// TODO: error out
+		c.AbortWithStatus(400)
+		return
+	}
+
+	// TODO: escape file name if gin does not
+	c.SaveUploadedFile(file, path.Join(svr.UploadPath, header.Filename))
+
+	// TODO: extract file contents
+
+	// TODO: run ian on the file contents
+
+	// TODO: move debian package to unique location
+
+	// TODO: redirect to debian package location
 }
