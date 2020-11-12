@@ -20,11 +20,18 @@ func main() {
 	var uploadPath, extractPath, downloadPath string
 	var maxFileSize int64
 
-	flag.StringVar(&uploadPath, "-u", "uploads", "Directory to upload files to")
-	flag.StringVar(&extractPath, "-e", "extracts", "Directory to extract into")
-	flag.StringVar(&downloadPath, "-d", "downloads", "Directory to serve downloads from")
-	flag.Int64Var(&maxFileSize, "-m", 50, "Max file size to serve (mB)")
+	flag.StringVar(&uploadPath, "u", "uploads", "Directory to upload files to")
+	flag.StringVar(&extractPath, "e", "extracts", "Directory to extract into")
+	flag.StringVar(&downloadPath, "d", "downloads", "Directory to serve downloads from")
+	flag.Int64Var(&maxFileSize, "m", 50, "Max file size to serve (mB)")
 	flag.Parse()
+
+	checkFile(uploadPath)
+	log.Println("found uploads path at", uploadPath)
+	checkFile(extractPath)
+	log.Println("found extracts path at", extractPath)
+	checkFile(downloadPath)
+	log.Println("found downloads path at", downloadPath)
 
 	api := gin.Default()
 	api.MaxMultipartMemory = maxFileSize << 20
@@ -117,6 +124,7 @@ func (svr *server) UploadFile(c *gin.Context) {
 		c.AbortWithError(500, err)
 		return
 	}
+	log.Println("built debian package to", debpath)
 
 	// move debian package to unique location
 	dldir := path.Join(svr.DownloadPath, uid)
@@ -124,6 +132,7 @@ func (svr *server) UploadFile(c *gin.Context) {
 		c.AbortWithError(500, err)
 		return
 	}
+	log.Println("created download dir", dldir)
 
 	dlpath := path.Join(dldir, path.Base(debpath))
 	dlfile, err := os.OpenFile(dlpath, os.O_CREATE|os.O_WRONLY, 0644)
@@ -132,6 +141,7 @@ func (svr *server) UploadFile(c *gin.Context) {
 		return
 	}
 	defer dlfile.Close()
+	log.Println("opened download path", dlpath)
 
 	debfile, err := os.Open(debpath)
 	if err != nil {
@@ -139,6 +149,7 @@ func (svr *server) UploadFile(c *gin.Context) {
 		return
 	}
 	defer debfile.Close()
+	log.Println("opened debfile path", debpath)
 
 	if _, err := io.Copy(dlfile, debfile); err != nil {
 		c.AbortWithError(500, err)
@@ -169,10 +180,21 @@ func buildDpkg(dir string) (string, error) {
 	cmd := exec.Command("ian", "pkg")
 	cmd.Env = append(cmd.Env, "IAN_DIR="+dir)
 	fn, err := cmd.Output()
-	return string(fn), err
+	return strings.TrimSpace(string(fn)), err
 }
 
 func unique() string {
 	u := uuid.NewV4()
 	return u.String()
+}
+
+func checkFile(d string) {
+	s, err := os.Stat(d)
+	if !s.IsDir() {
+		panic(d + " is not a dir")
+	}
+
+	if err != nil {
+		panic(err)
+	}
 }
