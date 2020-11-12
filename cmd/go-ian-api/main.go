@@ -26,13 +26,13 @@ func main() {
 	flag.Parse()
 
 	api := gin.Default()
-	api.StaticFS("/download", http.Dir(DownloadPath))
+	api.StaticFS("/download", http.Dir(downloadPath))
 	api.MaxMultipartMemory = maxFileSize << 20
 
 	svr := &server{
-		UploadPath,
-		ExtractPath,
-		DownloadPath,
+		uploadPath,
+		extractPath,
+		downloadPath,
 	}
 	svr.AttachRoutes(api)
 	// TODO: rate limit
@@ -52,13 +52,13 @@ func (svr *server) AttachRoutes(r gin.IRouter) {
 }
 
 func (svr *server) UploadFile(c *gin.Context) {
-	file, header := c.FormFile("file")
-	if header.Size > MaxFileSize {
-		c.AbortWithStatus(400)
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.AbortWithStatus(500)
 		return
 	}
 
-	name := strings.Split(header.Filename, ".")
+	name := strings.Split(file.Filename, ".")
 	ext := strings.Join(name[1:], ".")
 
 	switch ext {
@@ -70,7 +70,7 @@ func (svr *server) UploadFile(c *gin.Context) {
 	}
 
 	// TODO: escape file name if gin does not
-	filepath := path.Join(svr.UploadPath, header.Filename)
+	filepath := path.Join(svr.UploadPath, file.Filename)
 	if err := c.SaveUploadedFile(file, filepath); err != nil {
 		c.AbortWithStatus(500)
 		return
@@ -89,6 +89,11 @@ func (svr *server) UploadFile(c *gin.Context) {
 		err = extractTar(filepath, exdir)
 	case "zip":
 		err = extractZip(filepath, exdir)
+	}
+
+	if err != nil {
+		c.AbortWithStatus(500)
+		return
 	}
 
 	if err := validateDir(exdir); err != nil {
@@ -157,6 +162,6 @@ func buildDpkg(dir string) (string, error) {
 }
 
 func unique() string {
-	u, _ := uuid.NewV4()
+	u := uuid.NewV4()
 	return u.String()
 }
