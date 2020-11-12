@@ -84,7 +84,13 @@ func (svr *server) UploadFile(c *gin.Context) {
 		return
 	}
 
-	// TODO: redirect to debian package location
+	// run ian on the file contents
+	debpath, err := buildDpkg(exdir)
+	if err != nil {
+		c.AbortWithStatus(500)
+		return
+	}
+
 }
 
 func extractZip(filepath, dir string) error {
@@ -100,6 +106,13 @@ func extractTar(filepath, dir string) error {
 func validateDir(dir string) error {
 	_, err := os.Stat(path.Join(dir, "DEBIAN", "control"))
 	return err
+}
+
+func buildDpkg(dir string) (string, error) {
+	cmd := exec.Command("ian", "pkg")
+	cmd.Env = append(cmd.Env, "IAN_DIR="+dir)
+	fn, err := cmd.Output()
+	return string(fn), err
 }
 
 func unique() string {
