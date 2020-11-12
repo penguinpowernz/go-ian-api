@@ -79,7 +79,10 @@ func (svr *server) UploadFile(c *gin.Context) {
 		err = extractZip(filepath, exdir)
 	}
 
-	// TODO: move debian package to unique location
+	if err := validateDir(exdir); err != nil {
+		c.AbortWithStatus(400)
+		return
+	}
 
 	// TODO: redirect to debian package location
 }
@@ -94,6 +97,10 @@ func extractTar(filepath, dir string) error {
 	return cmd.Run()
 }
 
+func validateDir(dir string) error {
+	_, err := os.Stat(path.Join(dir, "DEBIAN", "control"))
+	return err
+}
 
 func unique() string {
 	u, _ := uuid.NewV4()
