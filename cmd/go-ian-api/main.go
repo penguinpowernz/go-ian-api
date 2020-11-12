@@ -1,27 +1,37 @@
 package main
 
 import (
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"os/exec"
 	"path"
 	"strings"
+
+	"github.com/satori/uuid"
 
 	"github.com/gin-gonic/gin"
 )
 
 var (
-	MaxFileSize = 50 * 1024 * 1024
-	UploadPath  = "uploads"
-	ExtractPath = "extracts"
+	MaxFileSize  = 50 * 1024 * 1024
+	UploadPath   = "uploads"
+	ExtractPath  = "extracts"
+	DownloadPath = "downloads"
 )
 
 func main() {
 	api := gin.Default()
 
-	api.StaticFS("/download", http.Dir("downloads"))
+	api.StaticFS("/download", http.Dir(DownloadPath))
 	api.MaxMultipartMemory = 8 << 20
 
-	svr := &server{}
+	svr := &server{
+		UploadPath,
+		ExtractPath,
+		DownloadPath,
+	}
 	svr.AttachRoutes(api)
 	// TODO: rate limit
 
@@ -30,8 +40,9 @@ func main() {
 }
 
 type server struct {
-	UploadPath  string
-	ExtractPath string
+	UploadPath   string
+	ExtractPath  string
+	DownloadPath string
 }
 
 func (svr *server) AttachRoutes(r gin.IRouter) {
@@ -52,7 +63,6 @@ func (svr *server) UploadFile(c *gin.Context) {
 	case "tar.gz", "zip":
 		break
 	default:
-		// TODO: error out
 		c.AbortWithStatus(400)
 		return
 	}
