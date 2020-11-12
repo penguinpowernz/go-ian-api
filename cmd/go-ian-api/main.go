@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"io"
 	"log"
 	"net/http"
@@ -14,18 +15,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var (
-	MaxFileSize  = 50 * 1024 * 1024
-	UploadPath   = "uploads"
-	ExtractPath  = "extracts"
-	DownloadPath = "downloads"
-)
-
 func main() {
-	api := gin.Default()
+	var uploadPath, extractPath, downloadPath string
+	var maxFileSize int64
 
+	flag.StringVar(&uploadPath, "-u", "uploads", "Directory to upload files to")
+	flag.StringVar(&extractPath, "-e", "extracts", "Directory to extract into")
+	flag.StringVar(&downloadPath, "-d", "downloads", "Directory to serve downloads from")
+	flag.Int64Var(&maxFileSize, "-m", 50, "Max file size to serve (mB)")
+	flag.Parse()
+
+	api := gin.Default()
 	api.StaticFS("/download", http.Dir(DownloadPath))
-	api.MaxMultipartMemory = 8 << 20
+	api.MaxMultipartMemory = maxFileSize << 20
 
 	svr := &server{
 		UploadPath,
