@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"io"
 	"log"
@@ -54,7 +55,7 @@ func (svr *server) AttachRoutes(r gin.IRouter) {
 func (svr *server) UploadFile(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.AbortWithStatus(500)
+		c.AbortWithError(500, err)
 		return
 	}
 
@@ -65,21 +66,21 @@ func (svr *server) UploadFile(c *gin.Context) {
 	case "tar.gz", "zip":
 		break
 	default:
-		c.AbortWithStatus(400)
+		c.AbortWithError(400, errors.New("bad file type"))
 		return
 	}
 
 	// TODO: escape file name if gin does not
 	filepath := path.Join(svr.UploadPath, file.Filename)
 	if err := c.SaveUploadedFile(file, filepath); err != nil {
-		c.AbortWithStatus(500)
+		c.AbortWithError(500, err)
 		return
 	}
 
 	uid := unique()
 	exdir := path.Join(svr.ExtractPath, uid)
 	if err := os.MkdirAll(exdir, 0755); err != nil {
-		c.AbortWithStatus(500)
+		c.AbortWithError(500, err)
 		return
 	}
 
@@ -92,46 +93,46 @@ func (svr *server) UploadFile(c *gin.Context) {
 	}
 
 	if err != nil {
-		c.AbortWithStatus(500)
+		c.AbortWithError(500, err)
 		return
 	}
 
 	if err := validateDir(exdir); err != nil {
-		c.AbortWithStatus(400)
+		c.AbortWithError(400, err)
 		return
 	}
 
 	// run ian on the file contents
 	debpath, err := buildDpkg(exdir)
 	if err != nil {
-		c.AbortWithStatus(500)
+		c.AbortWithError(500, err)
 		return
 	}
 
 	// move debian package to unique location
 	dldir := path.Join(svr.DownloadPath, uid)
 	if err := os.MkdirAll(dldir, 0755); err != nil {
-		c.AbortWithStatus(500)
+		c.AbortWithError(500, err)
 		return
 	}
 
 	dlpath := path.Join(dldir, path.Base(debpath))
 	dlfile, err := os.OpenFile(dlpath, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		c.AbortWithStatus(500)
+		c.AbortWithError(500, err)
 		return
 	}
 	defer dlfile.Close()
 
 	debfile, err := os.Open(debpath)
 	if err != nil {
-		c.AbortWithStatus(500)
+		c.AbortWithError(500, err)
 		return
 	}
 	defer debfile.Close()
 
 	if _, err := io.Copy(dlfile, debfile); err != nil {
-		c.AbortWithStatus(500)
+		c.AbortWithError(500, err)
 		return
 	}
 
