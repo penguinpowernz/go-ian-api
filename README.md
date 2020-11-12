@@ -8,13 +8,9 @@ Made as part of the Level1Techs Devember https://forum.level1techs.com/t/welcome
 
 ## Building
 
-(theorectically, nothing to build yet)
-
 Run `make`
 
 ## Usage
-
-(theorectically, nothing to build yet)
 
 Run `bin/go-ian-api`
 
@@ -25,13 +21,14 @@ curl -X POST http://localhost:8080/upload \
   -F "file=@test.zip" \
   -H "Content-Type: multipart/form-data"
   --max-time 30
+  -LJO
 ```
 
 ## Todo (in order of priority)
 
-- [ ] devise a one liner to use for pushing zip and downloading package in one go
-- [ ] actually extract the zip and build the debian package from it
-- [ ] use UUIDs to uniquefy different requests
+- [x] devise a one liner to use for pushing zip and downloading package in one go
+- [x] actually extract the zip and build the debian package from it
+- [x] use UUIDs to uniquefy different requests
 - [ ] delete package files after 15 mins
 - [ ] implement rate limiting
 - [ ] accept params to set package version number, architecture, etc
