@@ -27,7 +27,6 @@ func main() {
 	flag.Parse()
 
 	api := gin.Default()
-	api.StaticFS("/download", http.Dir(downloadPath))
 	api.MaxMultipartMemory = maxFileSize << 20
 
 	svr := &server{
@@ -50,6 +49,16 @@ type server struct {
 
 func (svr *server) AttachRoutes(r gin.IRouter) {
 	r.POST("/upload", svr.UploadFile)
+	r.GET("/download/:id/:filename", svr.DownloadFile)
+}
+
+func (svr *server) DownloadFile(c *gin.Context) {
+	id := c.Param("id")
+	fn := c.Param("filename")
+	// TODO: escape the file path
+	fp := path.Join(svr.DownloadPath, id, fn)
+
+	c.FileAttachment(fp, fn)
 }
 
 func (svr *server) UploadFile(c *gin.Context) {
@@ -137,7 +146,8 @@ func (svr *server) UploadFile(c *gin.Context) {
 	}
 
 	// redirect to debian package location
-	c.Redirect(http.StatusMovedPermanently, "/"+dlpath)
+
+	c.Redirect(http.StatusSeeOther, path.Join("/download", uid, path.Base(debpath)))
 }
 
 func extractZip(filepath, dir string) error {
