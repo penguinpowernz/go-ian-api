@@ -91,6 +91,35 @@ func (svr *server) UploadFile(c *gin.Context) {
 		return
 	}
 
+	// move debian package to unique location
+	dldir := path.Join(svr.DownloadPath, uid)
+	if err := os.MkdirAll(dldir, 0755); err != nil {
+		c.AbortWithStatus(500)
+		return
+	}
+
+	dlpath := path.Join(dldir, path.Base(debpath))
+	dlfile, err := os.OpenFile(dlpath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		c.AbortWithStatus(500)
+		return
+	}
+	defer dlfile.Close()
+
+	debfile, err := os.Open(debpath)
+	if err != nil {
+		c.AbortWithStatus(500)
+		return
+	}
+	defer debfile.Close()
+
+	if _, err := io.Copy(dlfile, debfile); err != nil {
+		c.AbortWithStatus(500)
+		return
+	}
+
+	// redirect to debian package location
+	c.Redirect(http.StatusMovedPermanently, "/"+dlpath)
 }
 
 func extractZip(filepath, dir string) error {
