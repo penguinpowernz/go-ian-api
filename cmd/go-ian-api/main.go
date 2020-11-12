@@ -58,13 +58,44 @@ func (svr *server) UploadFile(c *gin.Context) {
 	}
 
 	// TODO: escape file name if gin does not
-	c.SaveUploadedFile(file, path.Join(svr.UploadPath, header.Filename))
+	filepath := path.Join(svr.UploadPath, header.Filename)
+	if err := c.SaveUploadedFile(file, filepath); err != nil {
+		c.AbortWithStatus(500)
+		return
+	}
 
-	// TODO: extract file contents
+	uid := unique()
+	exdir := path.Join(svr.ExtractPath, uid)
+	if err := os.MkdirAll(exdir, 0755); err != nil {
+		c.AbortWithStatus(500)
+		return
+	}
 
-	// TODO: run ian on the file contents
+	// extract file contents
+	switch ext {
+	case "tar.gz":
+		err = extractTar(filepath, exdir)
+	case "zip":
+		err = extractZip(filepath, exdir)
+	}
 
 	// TODO: move debian package to unique location
 
 	// TODO: redirect to debian package location
+}
+
+func extractZip(filepath, dir string) error {
+	cmd := exec.Command("unzip", "-d", dir, filepath)
+	return cmd.Run()
+}
+
+func extractTar(filepath, dir string) error {
+	cmd := exec.Command("tar", "-xzf", filepath, "-C", dir)
+	return cmd.Run()
+}
+
+
+func unique() string {
+	u, _ := uuid.NewV4()
+	return u.String()
 }
